@@ -1662,5 +1662,404 @@ fprintf('Ripetibilità Y: ±%.4f unità\n', std_y);</div>
         </div>
     </div>
 </div>
+<!-- APPENDICE A: GUIDA ALL'INSTALLAZIONE -->
+    <div class="chapter">
+        <h2>Appendice A: Guida all'Installazione e Configurazione</h2>
+<h3>Introduzione</h3>
+<p>Questa guida ti accompagnerà passo dopo passo nell'installazione e configurazione completa del robot XBOT. Il sistema è composto da un braccio robotico a 3 gradi di libertà controllato da Arduino e pilotato da MATLAB tramite comunicazione seriale.<!p>
+    <h3>Componenti Hardware Necessari:</h3>
+    
+    <table>
+        <tr>
+            <th>Componente</th>
+            <th>Consigliato</th>
+	    <th>Note</th>
+        </tr>
+        <tr>
+            <td>Scheda Elettronica</td>
+            <td>Arduino Uno</td>
+            <td>Offre 14 pin digitali (di cui 6 PWM) e 6 ingressi analogici</td>
+        </tr>
+        <tr>
+            <td>3 Servomotori</td>
+            <td>Micro servo 9g SG90</td>
+            <td>Servo 1, Servo 2, Servo Penna</td>
+        </tr>
+        <tr>
+            <td>Display OLED SSD1306</td>
+            <td>128x64 pixel, I2C</td>
+            <td>Attensione che alcuni cambiano misure</td>
+        </tr>
+        <tr>
+            <td>Buzzer</td>
+            <td>buzzer attivo</td>
+            <td>feedback sonoro</td>
+        </tr>
+    </table>
+    <h3>A.1 Requisiti di Sistema</h3>
+    
+    <table>
+        <tr>
+            <th>Componente</th>
+            <th>Requisito Minimo</th>
+            <th>Requisito Consigliato</th>
+        </tr>
+        <tr>
+            <td>Sistema Operativo</td>
+            <td>Windows 10</td>
+            <td>Windows 10/11, macOS 12+, Ubuntu 20.04+</td>
+        </tr>
+        <tr>
+            <td>RAM</td>
+            <td>4 GB</td>
+            <td>8 GB o superiore</td>
+        </tr>
+        <tr>
+            <td>Spazio Disco</td>
+            <td>5 GB</td>
+            <td>10 GB liberi</td>
+        </tr>
+        <tr>
+            <td>Porta USB</td>
+            <td>USB 2.0</td>
+            <td>USB 3.0</td>
+        </tr>
+    </table>
+    
+    <h3>A.2 Installazione Arduino IDE</h3>
+    
+    <h4>A.2.1 Download e Installazione</h4>
+    
+    <p>Scaricare Arduino IDE dal sito ufficiale: <code>https://www.arduino.cc/en/software</code></p>
+    
+    <ol>
+        <li>Selezionare la versione appropriata per il sistema operativo</li>
+        <li>Eseguire il file di installazione</li>
+        <li>Seguire la procedura guidata accettando le impostazioni predefinite</li>
+        <li>Avviare Arduino IDE per verificare l'installazione</li>
+    </ol>
+    
+    <h4>A.2.2 Installazione Librerie Arduino</h4>
+    
+    <p>Le seguenti librerie sono necessarie per il funzionamento del sistema:</p>
+    
+    <table>
+        <tr>
+            <th>Libreria</th>
+            <th>Versione</th>
+            <th>Procedura Installazione</th>
+        </tr>
+        <tr>
+            <td>Servo</td>
+            <td>Standard</td>
+            <td>Inclusa di default</td>
+        </tr>
+        <tr>
+            <td>Wire</td>
+            <td>Standard</td>
+            <td>Inclusa di default</td>
+        </tr>
+        <tr>
+            <td>Adafruit_GFX</td>
+            <td>1.x</td>
+            <td>Sketch → Include Library → Manage Libraries → Cerca "Adafruit GFX" → Install</td>
+        </tr>
+        <tr>
+            <td>Adafruit_SSD1306</td>
+            <td>2.x</td>
+            <td>Sketch → Include Library → Manage Libraries → Cerca "Adafruit SSD1306" → Install</td>
+        </tr>
+    </table>
+    
+    <div class="note">
+        <strong>Nota:</strong> Durante l'installazione di Adafruit_SSD1306, potrebbero essere richieste dipendenze aggiuntive. Accettare l'installazione di tutte le dipendenze suggerite.
+    </div>
+    
+    <h4>A.2.3 Configurazione Board Arduino</h4>
+    
+    <div class="code-block">Procedura:
+
+Connettere Arduino al PC tramite cavo USB
+Tools → Board → Selezionare modello (es. "Arduino Uno")
+Tools → Port → Selezionare porta COM assegnata
+"Come identificare la porta COM:
+• Windows: Gestione Dispositivi → Porte (COM e LPT)
+• macOS: /dev/cu.usbmodem* o /dev/cu.usbserial*
+• Linux: /dev/ttyUSB* o /dev/ttyACM*"
+Verificare connessione: File → Examples → 01.Basics → Blink
+Upload e verificare LED lampeggiante</div>
+ <h3>A.3 Installazione MATLAB R2024b</h3>
+ 
+ <h4>A.3.1 Download MATLAB</h4>
+ 
+ <p>Scaricare MATLAB R2024b dal portale MathWorks: <code>https://it.mathworks.com/downloads/</code></p>
+ 
+ <div class="warning">
+     <strong>Licenza Richiesta:</strong> MATLAB richiede una licenza valida. Gli studenti universitari possono verificare la disponibilità di licenze accademiche gratuite attraverso il proprio ateneo.
+ </div>
+ 
+ <h4>A.3.2 Procedura di Installazione</h4>
+ 
+ <ol>
+     <li>Eseguire il file di installazione</li>
+     <li>Accedere con le credenziali MathWorks</li>
+     <li>Selezionare la licenza da utilizzare</li>
+     <li>Nella schermata di selezione prodotti, selezionare almeno MATLAB (base)</li>
+     <li>Completare l'installazione (tempo stimato: 30-60 minuti)</li>
+ </ol>
+ 
+ <h4>A.3.3 Verifica Installazione</h4>
+ 
+ <div class="code-block">>> ver
+MATLAB Version 24.2 (R2024b)
+Operating System: ...
+Java Version: ...</div>
+    <h3>A.4 Installazione Robotics Toolbox</h3>
+    
+    <h4>A.4.1 Download Toolbox</h4>
+    
+    <p>Scaricare il Robotics Toolbox di Peter Corke: <code>https://petercorke.com/toolboxes/robotics-toolbox/</code></p>
+    <p>Scorri la pagina fino al file richiesto: <strong>RTB10.4.mltbx</strong> (Version 10.4)</p>
+    
+    <h4>A.4.2 Installazione</h4>
+    
+    <ol>
+        <li>Localizzare il file <code>RTB10.4.mltbx</code> scaricato</li>
+        <li>Fare doppio clic sul file .mltbx</li>
+        <li>MATLAB si aprirà automaticamente mostrando la finestra di installazione</li>
+        <li>Cliccare su <strong>Install</strong></li>
+        <li>Attendere il completamento dell'installazione</li>
+        <li>Cliccare su <strong>OK</strong> alla conferma</li>
+    </ol>
+    
+    <div class="note">
+        <strong>Nota:</strong> Il toolbox viene installato automaticamente nella cartella Add-Ons di MATLAB e diventa immediatamente disponibile senza necessità di configurazioni aggiuntive.
+    </div>
+    
+    <h4>A.4.3 Verifica Installazione Toolbox</h4>
+    
+    <div class="code-block">% Test 1: Verifica versione
+ver
+Robotics Toolbox for MATLAB    Version 10.4
+% Test 2: Creazione robot di test
+
+L1 = Link('d',0,'a',1,'alpha',0);
+robot = SerialLink(L1);
+robot.plot([0])</div>
+
+
+    <div class="highlight">
+        <strong>Risultato atteso:</strong> Se compare una finestra 3D con la visualizzazione del robot, l'installazione è completata correttamente.
+    </div>
+    
+    <h3>A.5 Configurazione File Progetto</h3>
+    <p>Scarica i file e i codici del progetto dal repository GitHub: <code>https://github.com/KevinPetrone/XBOT_Progetto_Sistemi_Robotici</code></p>
+    <h4>A.5.1 Struttura Directory</h4>
+    
+    <div class="code-block">XBOT_Project/
+├── arduino_xbot/
+│   └── arduino_xbot.ino
+└── matlab/
+├── initArduino.m
+├── sendToArduino.m
+└── tris_robotics_game_arduino.m</div>
+    <h4>A.5.2 Configurazione Porta Seriale</h4>
+    
+    <p><strong>Identificazione Porta COM:</strong></p>
+    
+    <table>
+        <tr>
+            <th>Sistema Operativo</th>
+            <th>Procedura</th>
+        </tr>
+        <tr>
+            <td>Windows</td>
+            <td>Gestione Dispositivi → Porte (COM e LPT) → Annotare numero porta (es. COM4)</td>
+        </tr>
+        <tr>
+            <td>macOS</td>
+            <td>Terminale: <code>ls /dev/cu.*</code></td>
+        </tr>
+        <tr>
+            <td>Linux</td>
+            <td>Terminale: <code>ls /dev/ttyUSB* /dev/ttyACM*</code></td>
+        </tr>
+    </table>
+    
+    <p><strong>Modifica file initArduino.m:</strong></p>
+    
+    <div class="code-block">function s = initArduino(port)
+if nargin < 1
+    port = "COM4";  % ← MODIFICARE CON LA PORTA CORRETTA
+end
+
+s = serialport(port, 115200);
+configureTerminator(s, "LF");
+pause(2);
+end</div>
+    <p><strong>Modifica file tris_robotics_game_arduino.m:</strong></p>
+    
+    <div class="code-block">% Riga ~6
+s = initArduino("COM4");  % ← MODIFICARE CON LA PORTA CORRETTA</div>
+    <h4>A.5.3 Configurazione Current Folder MATLAB</h4>
+    
+    <div class="warning">
+        <strong>FONDAMENTALE:</strong> MATLAB deve avere come Current Folder la directory contenente i file .m prima dell'esecuzione.
+    </div>
+    
+    <div class="code-block">% In MATLAB Command Window:
+
+
+cd 'C:\XBOT_Project\matlab'
+pwd  % Verifica percorso corrente
+
+
+ans =
+'C:\XBOT_Project\matlab'</div>
+    <h3>A.6 Caricamento Codice Arduino</h3>
+    
+    <h4>A.6.1 Verifica Connessioni Hardware</h4>
+    
+    <table>
+        <tr>
+            <th>Componente</th>
+            <th>Pin Arduino</th>
+            <th>Note</th>
+        </tr>
+        <tr>
+            <td>Servo 1 (Base)</td>
+            <td>Pin 9</td>
+            <td>Segnale PWM</td>
+        </tr>
+        <tr>
+            <td>Servo 2 (Braccio)</td>
+            <td>Pin 10</td>
+            <td>Segnale PWM</td>
+        </tr>
+        <tr>
+            <td>Servo 3 (Penna)</td>
+            <td>Pin 11</td>
+            <td>Segnale PWM</td>
+        </tr>
+        <tr>
+            <td>Buzzer</td>
+            <td>Pin 3</td>
+            <td>Segnale digitale</td>
+        </tr>
+        <tr>
+            <td>OLED SDA</td>
+            <td>A4 (Uno) / 20 (Mega)</td>
+            <td>Comunicazione I2C</td>
+        </tr>
+        <tr>
+            <td>OLED SCL</td>
+            <td>A5 (Uno) / 21 (Mega)</td>
+            <td>Comunicazione I2C</td>
+        </tr>
+        <tr>
+            <td>OLED VCC</td>
+            <td>5V</td>
+            <td>Alimentazione</td>
+        </tr>
+        <tr>
+            <td>OLED GND</td>
+            <td>GND</td>
+            <td>Massa</td>
+        </tr>
+    </table>
+    
+    <h4>A.6.2 Upload Sketch</h4>
+    
+    <ol>
+        <li>Aprire <code>arduino_xbot.ino</code> con Arduino IDE</li>
+        <li>Verificare Board e Port corretti</li>
+        <li>Cliccare su Verify (✓) per compilare</li>
+        <li>Se compilazione OK, cliccare su Upload (→)</li>
+        <li>Attendere messaggio "Done uploading"</li>
+    </ol>
+    
+    <div class="highlight">
+        <strong>Test Funzionamento:</strong> Dopo l'upload, il display OLED dovrebbe mostrare "XBOT v1.0" e il buzzer dovrebbe riprodurre una melodia di avvio.
+    </div>
+    
+    <h3>A.7 Esecuzione Sistema</h3>
+    
+    <h4>A.7.1 Checklist Pre-Esecuzione</h4>
+    
+    <ul>
+        <li>✓ Arduino connesso e programmato</li>
+        <li>✓ MATLAB aperto con Current Folder corretto</li>
+        <li>✓ Porta COM configurata nei file .m</li>
+        <li>✓ Serial Monitor Arduino IDE chiuso</li>
+        <li>✓ Hardware robot assemblato e alimentato</li>
+    </ul>
+    
+    <h4>A.7.2 Avvio Programma</h4>
+    
+    <div class="code-block">% In MATLAB Command Window:
+
+
+tris_robotics_game_arduino
+
+
+🔌 Connessione ad Arduino su COM4 ...
+✅ Arduino inizializzato su COM4
+[Inizializzazione robot e disegno griglia]</div>
+    <h3>A.8 Risoluzione Problemi Comuni</h3>
+    
+    <table>
+        <tr>
+            <th>Errore</th>
+            <th>Causa Probabile</th>
+            <th>Soluzione</th>
+        </tr>
+        <tr>
+            <td>Undefined function 'initArduino'</td>
+            <td>Current Folder errato</td>
+            <td>Verificare con <code>pwd</code> e usare <code>cd</code> per spostarsi</td>
+        </tr>
+        <tr>
+            <td>Cannot connect to port</td>
+            <td>Porta COM errata o occupata</td>
+            <td>Verificare porta in Gestione Dispositivi, chiudere Serial Monitor</td>
+        </tr>
+        <tr>
+            <td>Display OLED non funziona</td>
+            <td>Connessioni I2C o indirizzo errato</td>
+            <td>Verificare SDA/SCL, provare indirizzo 0x3D invece di 0x3C</td>
+        </tr>
+        <tr>
+            <td>Servomotori immobili</td>
+            <td>Alimentazione insufficiente</td>
+            <td>Usare alimentatore esterno per servomotori</td>
+        </tr>
+        <tr>
+            <td>Undefined function 'SerialLink'</td>
+            <td>Robotics Toolbox non installato</td>
+            <td>Verificare con <code>ver</code>, reinstallare RTB10.4.mltbx</td>
+        </tr>
+    </table>
+    
+    <h3>A.9 Personalizzazione Parametri</h3>
+    
+    <h4>A.9.1 Lunghezze Bracci Robot</h4>
+    
+    <div class="code-block">% In tris_robotics_game_arduino.m
+L1 = Link('d',0,'a',2.5,'alpha',0);  % Modificare 2.5
+L2 = Link('d',0,'a',2.0,'alpha',0);  % Modificare 2.0</div>
+    <h4>A.9.2 Velocità Movimenti</h4>
+    
+    <div class="code-block">// In arduino_xbot.ino
+const unsigned long moveDuration = 500;  // Modificare valore (ms)</div>
+    <h4>A.9.3 Dimensioni Griglia</h4>
+    
+    <div class="code-block">% In tris_robotics_game_arduino.m
+cellSize = 0.9;  % Modificare dimensione celle
+offset = 0.6;    % Modificare offset da origine</div>
+    <div class="note">
+        <strong>Nota:</strong> Dopo ogni modifica dei parametri geometrici, è necessario verificare che tutte le posizioni rimangano all'interno del workspace raggiungibile del robot.
+    </div>
+</div>
+</div>
 </body>
 </html>
