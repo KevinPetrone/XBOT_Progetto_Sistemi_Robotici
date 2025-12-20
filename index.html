@@ -834,12 +834,10 @@ y_max = y0 + gridSize = 3.3</div>
         <div class="theory">
             <strong>Jacobiano per manipolatore 2R:</strong>
             <p>Derivando le equazioni della cinematica diretta:</p>
-            <div class="formula">
-                J = [<br>
-                &nbsp;&nbsp;-L₁sin(θ₁) - L₂sin(θ₁+θ₂) &nbsp;&nbsp; -L₂sin(θ₁+θ₂)<br>
-                &nbsp;&nbsp;L₁cos(θ₁) + L₂cos(θ₁+θ₂) &nbsp;&nbsp;&nbsp; L₂cos(θ₁+θ₂)<br>
-                ]
-            </div>
+	<pre class="formula">
+J = ⎡ -L₁ sin(θ₁) − L₂ sin(θ₁+θ₂)   -L₂ sin(θ₁+θ₂) ⎤
+  ⎣  L₁ cos(θ₁) + L₂ cos(θ₁+θ₂)    L₂ cos(θ₁+θ₂) ⎦
+	</pre>
             <p>Le <strong>configurazioni singolari</strong> si verificano quando det(J) = 0, tipicamente quando θ₂ = 0 o θ₂ = π (braccio completamente esteso o ripiegato).</p>
         </div>
     </div>
@@ -883,33 +881,59 @@ y_max = y0 + gridSize = 3.3</div>
         
         <p>Inizializzazione della porta seriale in MATLAB:</p>
         
-        <div class="code-block">function s = initSerial(portName)
-s = serialport(portName, 115200);
-configureTerminator(s, "LF");
-pause(2);  % Attesa stabilizzazione connessione
-fprintf('Connessione seriale stabilita su %s\n', portName);
+        <div class="code-block">function s = initArduino(port)
+    % Inizializza la connessione seriale con Arduino
+    if nargin < 1, port = "COM4"; end
+    disp("🔌 Connessione ad Arduino su " + port + " ...");
+
+    try
+        s = serialport(port,115200);
+        configureTerminator(s,"LF");
+        pause(1.0);
+        flush(s);
+        writeline(s,"A,90,180,90"); % posizione iniziale
+        disp("✅ Arduino inizializzato su " + port);
+    catch ME
+        warning("❌ Errore connessione Arduino: " + ME.message);
+        s = [];
+    end
 end</div>
         <h4>4.1.1 Funzione di Invio Comandi</h4>
         
         <p>La funzione <code>sendToArduino</code> gestisce l'invio dei comandi di posizionamento:</p>
         
-        <div class="code-block">function sendToArduino(s, th1_deg, th2_deg, z_deg)
-% Conversione da radianti a gradi
-if th1_deg > pi
-    th1_deg = rad2deg(th1_deg);
-    th2_deg = rad2deg(th2_deg);
+        <div class="code-block">function sendToArduino(s, th1, th2, z)
+    % Invia i comandi di posizione ai servo reali
+    % th1, th2 = angoli in radianti
+    % z = quota simulata (0.05-0.8) → mappata in 180° (giù) ... -90° (su)
+
+    if isempty(s) || ~isvalid(s)
+        warning("⚠️ Arduino non connesso!");
+        return;
+    end
+
+    % --- Angoli per i servomotori 1 e 2 ---
+    a1 = round(90 + rad2deg(th1));  % servo 1 normale
+
+    % Servo 2 invertito: 0 = S, 180 = N
+    a2 = round(rad2deg(th2));       % da 0 a 180
+    a2 = 180 - a2;                  % inversione
+
+    % --- Servo penna ---
+    z_min = 0.05; % penna giù
+    z_max = 0.8;  % penna su
+    servo3 = interp1([z_min z_max], [180 90], z, 'linear', 'extrap'); 
+
+    % --- Clamping ---
+    a1 = max(min(a1,180),0);
+    a2 = max(min(a2,180),0);
+    servo3 = max(min(servo3,190),90);
+
+    % --- Invia comando ad Arduino ---
+    cmd = sprintf("A,%d,%d,%d\n", a1, a2, round(servo3));
+    writeline(s, cmd);
 end
-
-% Clamp ai limiti servomotori
-th1_deg = max(0, min(180, th1_deg));
-th2_deg = max(0, min(180, 180 - th2_deg));
-z_deg = max(90, min(180, z_deg));
-
-% Invio comando
-cmd = sprintf('A,%d,%d,%d', ...
-              round(th1_deg), round(th2_deg), round(z_deg));
-writeline(s, cmd);
-end</div>
+</div>
         <div class="note">
             <strong>Inversione servo 2:</strong> Il secondo servomotore è montato meccanicamente in modo che 0° corrisponda a 180° logici. Per questo motivo viene inviato il valore (180 - θ₂).
         </div>
@@ -919,89 +943,44 @@ end</div>
         <p>Arduino implementa un sistema di interpolazione non bloccante per garantire movimenti fluidi tra le configurazioni ricevute.</p>
         
         <h4>4.2.1 Algoritmo di Interpolazione con Easing</h4>
-        
-        <div class="code-block">// Variabili globali per interpolazione
-int currentPos[3] = {90, 90, 90};
-int targetPos[3] = {90, 90, 90};
-unsigned long startTime = 0;
-unsigned long duration = 500;  // 500ms per transizione
-bool isMoving = false;
-void loop() {
-// Gestione comandi seriali
-if (Serial.available()) {
-String cmd = Serial.readStringUntil('\n');
-parseCommand(cmd);
-}
-// Aggiornamento interpolazione
-if (isMoving) {
-    unsigned long elapsed = millis() - startTime;
-    if (elapsed >= duration) {
-        // Fine movimento
-        for (int i = 0; i < 3; i++) {
-            currentPos[i] = targetPos[i];
-        }
-        isMoving = false;
-    } else {
-        // Interpolazione con easing cubico
-        float t = (float)elapsed / duration;
-        float eased = t < 0.5 ? 
-                     4 * t * t * t : 
-                     1 - pow(-2 * t + 2, 3) / 2;
-        
-        for (int i = 0; i < 3; i++) {
-            int pos = currentPos[i] + 
-                     (targetPos[i] - currentPos[i]) * eased;
-            servos[i].write(pos);
-        }
-    }
-}
-
-delay(2);  // Loop a ~500Hz
+        <div class="code-block">// Funzione di easing in-out per movimento fluido
+float easeInOut(float t) {
+  // Se t < 0.5 (prima metà): Accelera con formula 2*t^2
+  // Se t >= 0.5 (seconda metà): Decelera invertendo la parabola
+  return t<0.5 ? 2*t*t : -1 + (4 - 2*t)*t;
 }</div>
         <div class="theory">
             <strong>Funzione di easing cubico:</strong>
             <p>L'interpolazione utilizza una curva di easing per accelerazione/decelerazione fluida:</p>
             <div class="formula">
-                ease(t) = 4t³ &nbsp;&nbsp; se t &lt; 0.5
+                ease(t) = 2t² &nbsp;&nbsp; se t &lt; 0.5 (Accelerazione)
             </div>
             <div class="formula">
-                ease(t) = 1 - (-2t + 2)³/2 &nbsp;&nbsp; se t ≥ 0.5
+                ease(t) = - 1 + (4t - 2t)t &nbsp;&nbsp; se t ≥ 0.5 (Decelerazione)
             </div>
             <p>Questo produce movimenti naturali con accelerazione iniziale e decelerazione finale, evitando scatti bruschi.</p>
         </div>
         
         <h4>4.2.2 Parsing dei Comandi</h4>
         
-        <div class="code-block">void parseCommand(String cmd) {
-cmd.trim();
+        <div class="code-block">  //Calcolo del tempo trascorso normalizzato tra 0.0 e 1.0
+  unsigned long now = millis();
+  float t = float(now - moveStartMillis) / moveDuration;
+  t = constrain(t, 0.0, 1.0); // Assicura che non si superi il 100%
 
-if (cmd.startsWith("A,")) {
-    // Comando di posizionamento
-    int pos1, pos2, pos3;
-    sscanf(cmd.c_str(), "A,%d,%d,%d", &pos1, &pos2, &pos3);
-    
-    targetPos[0] = constrain(pos1, 0, 180);
-    targetPos[1] = constrain(pos2, 0, 180);
-    targetPos[2] = constrain(pos3, 90, 180);
-    
-    startTime = millis();
-    isMoving = true;
-}
-else if (cmd == "MOVE") {
-    playMoveSound();
-}
-else if (cmd == "WIN") {
-    playWinMelody();
-}
-else if (cmd == "LOSE") {
-    playLoseMelody();
-}
-else if (cmd.startsWith("MSG,")) {
-    // Parsing messaggio display
-    // MSG,testo,x,y,size
-    displayMessage(cmd);
-}
-}</div>
+  // Ottieni il fattore di movimento "curvato" dalla funzione
+  float eased = easeInOut(t);
+
+  // Calcola la nuova posizione interpolata
+  // Formula: Posizione = Partenza + (DistanzaTotale * FattoreEased)
+  cur1 = start1 + (target1 - start1) * eased;
+  cur2 = start2 + (target2 - start2) * eased;
+  curp = startp + (targetp - startp) * eased;
+
+  // Invia il comando ai servomotori
+  s1.write(round(cur1));
+  s2.write(round(cur2));
+  sp.write(round(curp));</div>
 </div>
 </div>
 <!-- CAPITOLO 5: PIANIFICAZIONE DEL MOTO -->
@@ -1015,88 +994,69 @@ else if (cmd.startsWith("MSG,")) {
         
         <div class="theory">
             <strong>Interpolazione lineare:</strong>
-            <p>Data una linea da P₁ = (x₁, y₁) a P₂ = (x₂, y₂), si generano n punti intermedi:</p>
+            <p>Data una linea da P₁ = (x₁, y₁) a P₂ = (x₂, y₂), si generano 40 passi intermedi (waypoint) tramite interpolazione lineare per garantire tratti fluidi.
+:</p>
             <div class="formula">
-                Pᵢ = P₁ + (P₂ - P₁) · (i/n) &nbsp;&nbsp; per i = 0, 1, ..., n
+                Pᵢ = P₁ + (P₂ - P₁) · (i/n) &nbsp;&nbsp; per n = 40
             </div>
             <p>In MATLAB, questo si realizza con la funzione <code>linspace</code>:</p>
         </div>
         
-        <div class="code-block">function drawLine(robot, ik2R, v, s, x1, y1, x2, y2)
-n = 40;  % Numero di punti
-z_down = 180;  % Penna giù
-z_up = 90;     % Penna su
-
-% Interpolazione cartesiana
-xs = linspace(x1, x2, n);
-ys = linspace(y1, y2, n);
-
-% Abbassa penna
-[th1, th2, ok] = ik2R(x1, y1);
-if ~ok, return; end
-sendToArduino(s, th1, th2, z_down);
-pause(0.5);
-
-% Disegna linea
-for i = 1:n
-    [th1, th2, ok] = ik2R(xs(i), ys(i));
-    if ~ok, continue; end
-    
-    q = [th1 th2 z_down];
-    sendToArduino(s, th1, th2, z_down);
-    robot.plot(q, 'delay', 0.002, 'workspace', workspace);
-    
-    % Overlay traccia
-    plot3(xs(1:i), ys(1:i), zeros(1,i), 'k', 'LineWidth', 2);
-    
-    frame = getframe(gca);
-    writeVideo(v, frame);
-end
-
-% Alza penna
-sendToArduino(s, th1, th2, z_up);
-pause(0.3);
+        <div class="code-block">%% --- Funzioni di disegno robot ---
+function movePen(robot, ik2R, v, s, x1, y1, z1, x2, y2, z2)
+    n=40; xs=linspace(x1,x2,n); ys=linspace(y1,y2,n); zs=linspace(z1,z2,n);
+    for i=1:n
+        [th1,th2,ok]=ik2R(xs(i),ys(i)); if ~ok, continue; end
+        q=[th1 th2 zs(i)];
+        sendToArduino(s, q(1), q(2), q(3));
+        robot.plot(q,'delay',0.002,'workspace',[-1 5 -1 5 -0.5 1.5]);
+        frame=getframe(gca); frame.cdata=imresize(frame.cdata,[525 700]);
+        writeVideo(v,frame);
+    end
 end</div>
         <h3>5.2 Generazione Simboli X e O</h3>
         
-        <h4>5.2.1 Simbolo X</h4>
+        <h4>5.2.1 Simbolo X e O</h4>
         
-        <p>Il simbolo X è composto da due linee diagonali che si intersecano al centro della cella:</p>
+        <p>Il simbolo X è decomposto in due segmenti rettilinei diagonali che si intersecano, calcolati rispetto al centro della cella (cx, cy) con un offset diagonale d, mentre il simbolo O è una traiettoria ad alta definizione composta da 80 punti. I vertici sono generati parametricamente sfuttando seco e coseno rispetto al raggio sdim</p>
         
-        <div class="code-block">function drawX(robot, ik2R, v, s, center)
-cx = center(1);
-cy = center(2);
-d = 0.35;  % Metà diagonale
+        <div class="code-block">% Controllo del simbolo da disegnare
+    if symbol=='X'
+        th=linspace(0,1,40);
+        % Prima diagonale
+        x1=cx-sdim; y1=cy-sdim; x2=cx+sdim; y2=cy+sdim;
+        movePen(robot,ik2R,v,s,cx,cy,z_up,x1,y1,z_down);
+        for t=th
+            x=x1+(x2-x1)*t; y=y1+(y2-y1)*t;
+            [th1,th2,ok]=ik2R(x,y); if ~ok, continue; end
+            q=[th1 th2 z_down]; sendToArduino(s,q(1),q(2),q(3));
+            robot.plot(q,'delay',0.002); plot3(x,y,0,'r.','MarkerSize',10);
+        end
+        movePen(robot,ik2R,v,s,x2,y2,z_down,x2,y2,z_up);
 
-% Diagonale 1: da alto-sinistra a basso-destra
-drawLine(robot, ik2R, v, s, ...
-         cx-d, cy+d, cx+d, cy-d);
-
-% Diagonale 2: da alto-destra a basso-sinistra
-drawLine(robot, ik2R, v, s, ...
-         cx+d, cy+d, cx-d, cy-d);
-end</div>
-        <h4>5.2.2 Simbolo O</h4>
-        
-        <p>Il simbolo O è un cerchio centrato nella cella, approssimato da un poligono regolare a 30 lati:</p>
-        
-        <div class="code-block">function drawO(robot, ik2R, v, s, center)
-cx = center(1);
-cy = center(2);
-r = 0.35;  % Raggio cerchio
-n = 30;    % Numero di segmenti
-
-% Generazione punti circonferenza
-theta = linspace(0, 2*pi, n+1);
-xs = cx + r * cos(theta);
-ys = cy + r * sin(theta);
-
-% Disegna cerchio come sequenza di linee
-for i = 1:n
-    drawLine(robot, ik2R, v, s, ...
-             xs(i), ys(i), xs(i+1), ys(i+1));
-end
-end</div>
+        % Seconda diagonale
+        x1=cx-sdim; y1=cy+sdim; x2=cx+sdim; y2=cy-sdim;
+        movePen(robot,ik2R,v,s,x1,y1,z_up,x1,y1,z_down);
+        for t=th
+            x=x1+(x2-x1)*t; y=y1+(y2-y1)*t;
+            [th1,th2,ok]=ik2R(x,y); if ~ok, continue; end
+            q=[th1 th2 z_down]; sendToArduino(s,q(1),q(2),q(3));
+            robot.plot(q,'delay',0.002); plot3(x,y,0,'r.','MarkerSize',10);
+        end
+        movePen(robot,ik2R,v,s,x2,y2,z_down,x2,y2,z_up);
+    else
+        % Parametro angolare per il cerchio O
+        th = linspace(0,2*pi,80);
+        x = cx + sdim*cos(th); y = cy + sdim*sin(th); % Coordinate del cerchio
+        movePen(robot, ik2R, v, s, cx,cy,z_up,x(1),y(1),z_down);
+        for i=1:length(th)     % Disegno del cerchio
+            [th1,th2,ok]=ik2R(x(i),y(i)); if ~ok, continue; end
+            q=[th1 th2 z_down]; sendToArduino(s,q(1),q(2),q(3));  % Invio dei comandi ad Arduino
+            robot.plot(q,'delay',0.002); plot3(x(i),y(i),0,'b.','MarkerSize',10);
+        end
+        movePen(robot, ik2R, v, s, x(end),y(end),z_down,x(end),y(end),z_up);     % Sollevamento della penna al termine del cerchio
+    end
+    currPos=[cx,cy,z_up]; % Aggiornamento della posizione corrente della penna</div>
         <div class="highlight">
             <strong>Ottimizzazione tracciato cerchio:</strong>
             <p>Per ridurre il numero di alzate/abbassate della penna, il cerchio viene disegnato come traiettoria continua usando la funzione <code>movePen</code> che gestisce l'interpolazione senza sollevare la penna tra i segmenti.</p>
@@ -1109,42 +1069,34 @@ end</div>
         <p>Questa funzione gestisce il movimento simultaneo di tutti e 3 i giunti tra due configurazioni:</p>
         
         <div class="code-block">function movePen(robot, ik2R, v, s, x1, y1, z1, x2, y2, z2)
-n = 40;
-xs = linspace(x1, x2, n);
-ys = linspace(y1, y2, n);
-zs = linspace(z1, z2, n);  % Interpolazione anche su z
-
-for i = 1:n
-    [th1, th2, ok] = ik2R(xs(i), ys(i));
-    if ~ok, continue; end
-    
-    q = [th1 th2 zs(i)];
-    sendToArduino(s, q(1), q(2), q(3));
-    robot.plot(q, 'delay', 0.002, 'workspace', workspace);
-    
-    frame = getframe(gca);
-    writeVideo(v, frame);
-end
+    n=40; xs=linspace(x1,x2,n); ys=linspace(y1,y2,n); zs=linspace(z1,z2,n);
+    for i=1:n
+        [th1,th2,ok]=ik2R(xs(i),ys(i)); if ~ok, continue; end
+        q=[th1 th2 zs(i)];
+        sendToArduino(s, q(1), q(2), q(3));
+        robot.plot(q,'delay',0.002,'workspace',[-1 5 -1 5 -0.5 1.5]);
+        frame=getframe(gca); frame.cdata=imresize(frame.cdata,[525 700]);
+        writeVideo(v,frame);
+    end
 end</div>
         <h4>5.3.2 Gestione Stato Persistente</h4>
         
         <p>Per minimizzare i movimenti non necessari, il sistema mantiene traccia della posizione corrente:</p>
         
-        <div class="code-block">function drawLine(robot, ik2R, v, s, x1, y1, x2, y2)
-persistent currPos;
-if isempty(currPos), currPos = [x1, y1, 0.8]; end
+        <div class="code-block">function drawSymbol(robot, ik2R, v, s, pos, symbol)
+    cx=pos(1); cy=pos(2); sdim=0.35; z_up=0.8; z_down=0.05;
+    persistent currPos; if isempty(currPos), currPos=[cx cy z_up]; end
+    
+    % 2. CALCOLO VARIABILE PERSISTENTE
+    % "Utilizzando variabili persistent...
+    % il robot ricorda la sua ultima posizione"
+    movePen(robot, ik2R, v, s, currPos(1),currPos(2),currPos(3),cx,cy,z_up);
+    
+    % ... (codice che disegna la X e la O) ...
 
-% Muovi da posizione corrente a (x1, y1, z_up)
-movePen(robot, ik2R, v, s, ...
-        currPos(1), currPos(2), currPos(3), ...
-        x1, y1, z_up);
-
-% Disegna linea con penna abbassata
-movePen(robot, ik2R, v, s, ...
-        x1, y1, z_down, x2, y2, z_down);
-
-% Aggiorna posizione corrente
-currPos = [x2, y2, z_up];
+    % 3. AGGIORNAMENTO MEMORIA
+    % Salva la posizione finale per il prossimo turno
+    currPos=[cx,cy,z_up]; % Aggiornamento della posizione corrente della penna
 end</div>
         <div class="note">
             <strong>Ottimizzazione traiettoria:</strong> Mantenere lo stato della posizione corrente riduce significativamente il numero di movimenti "air moves" (movimenti con penna alzata), migliorando l'efficienza temporale del sistema.
@@ -1584,39 +1536,6 @@ fprintf('Ripetibilità Y: ±%.4f unità\n', std_y);</div>
             <li>Validazione algoritmo AI (100% vittorie/pareggi)</li>
             <li>Registrazione video dell'esecuzione completa</li>
         </ul>
-        
-        <h3>9.2 Sviluppi Futuri</h3>
-        
-        <p>Il progetto può essere esteso in diverse direzioni:</p>
-        
-        <h4>9.2.1 Miglioramenti Algoritmici</h4>
-        <ul>
-            <li><strong>Minimax completo:</strong> Implementazione algoritmo minimax con ricerca esaustiva dell'albero di gioco per garantire gioco perfetto</li>
-            <li><strong>Alpha-Beta Pruning:</strong> Ottimizzazione ricerca per ridurre complessità computazionale</li>
-            <li><strong>Apprendimento:</strong> Utilizzo reinforcement learning (Q-learning, Deep Q-Network) per adattamento strategia</li>
-        </ul>
-        
-        <h4>9.2.2 Estensioni Hardware</h4>
-        <ul>
-            <li><strong>Sensori di forza:</strong> Feedback tattile per controllare pressione penna e rilevare contatto</li>
-            <li><strong>Vision system:</strong> Camera per riconoscimento automatico dello stato del gioco</li>
-            <li><strong>Servomotori brushless:</strong> Maggiore precisione e dinamica</li>
-        </ul>
-        
-        <h4>9.2.3 Controllo Avanzato</h4>
-        <ul>
-            <li><strong>Controllo in coppia:</strong> Modello dinamico completo con compensazione gravità e Coriolis</li>
-            <li><strong>Controllo adattativo:</strong> Stima parametri on-line per compensare usura e variazioni</li>
-            <li><strong>Controllo di forza:</strong> Regolazione pressione penna tramite controllo di impedenza</li>
-        </ul>
-        
-        <h4>9.2.4 Applicazioni Alternative</h4>
-        <ul>
-            <li>Estensione a giochi più complessi (Forza 4, Dama)</li>
-            <li>Utilizzo come plotter generico per disegni artistici</li>
-            <li>Piattaforma didattica per insegnamento cinematica e controllo robotico</li>
-        </ul>
-        
         <div class="note">
             <strong>Considerazioni finali:</strong> Il progetto dimostra come concetti teorici di cinematica, pianificazione del moto e controllo possano essere integrati in un sistema funzionante. L'approccio modulare adottato (separazione cinematica/comunicazione/logica gioco) facilita manutenzione ed estensioni future.
         </div>
@@ -1908,12 +1827,12 @@ ans =
         </tr>
         <tr>
             <td>OLED SDA</td>
-            <td>A4 (Uno) / 20 (Mega)</td>
+            <td>A4 (Uno)</td>
             <td>Comunicazione I2C</td>
         </tr>
         <tr>
             <td>OLED SCL</td>
-            <td>A5 (Uno) / 21 (Mega)</td>
+            <td>A5 (Uno)</td>
             <td>Comunicazione I2C</td>
         </tr>
         <tr>
@@ -1987,11 +1906,6 @@ tris_robotics_game_arduino
             <td>Display OLED non funziona</td>
             <td>Connessioni I2C o indirizzo errato</td>
             <td>Verificare SDA/SCL, provare indirizzo 0x3D invece di 0x3C</td>
-        </tr>
-        <tr>
-            <td>Servomotori immobili</td>
-            <td>Alimentazione insufficiente</td>
-            <td>Usare alimentatore esterno per servomotori</td>
         </tr>
         <tr>
             <td>Undefined function 'SerialLink'</td>
