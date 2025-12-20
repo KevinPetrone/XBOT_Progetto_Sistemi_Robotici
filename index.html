@@ -336,18 +336,12 @@
         <div class="toc-item sub">
             <span>8.1 Verifica Cinematica</span>
         </div>
-        <div class="toc-item sub">
-            <span>8.2 Accuratezza Posizionamento</span>
-        </div>
         
         <div class="toc-item main">
             <span>9. CONCLUSIONI</span>
         </div>
         <div class="toc-item sub">
             <span>9.1 Risultati Ottenuti</span>
-        </div>
-        <div class="toc-item sub">
-            <span>9.2 Sviluppi Futuri</span>
         </div>
         
         <!-- APPENDICE -->
@@ -1162,7 +1156,7 @@ v = VideoWriter('tris_robotico_gioco.avi');
 v.FrameRate = 25;  % 25 fps per video fluido
 open(v);
 % Durante la simulazione
-for i = 1:n_steps
+for i = 1:n_steps    % con n=40
 % Aggiorna robot
 robot.plot(q, 'delay', 0.002);
 % Cattura frame corrente
@@ -1325,27 +1319,35 @@ end</div>
 </div>
         <h4>7.2.2 Implementazione Decisione Robot</h4>
         
-        <div class="code-block">% Turno robot
-free_cells = find(board == ' ');
-if isempty(free_cells), break; end
-% Priorità 1: Vinci
-cell_num = findBestMove(board, robot_symbol);
-if cell_num == 0
-% Priorità 2: Blocca
-cell_num = findBestMove(board, user_symbol);
-if cell_num == 0
-    % Priorità 3: Centro o casuale
-    if board(2,2) == ' '
-        cell_num = 5;  % Centro
-    else
-        cell_num = free_cells(randi(length(free_cells)));
+        <div class="code-block">%% --- Ciclo di gioco ---
+while winner == ' ' && moves < 9
+    if strcmp(turn,'user') %turno utente
+    else %turno robot
+        free_cells = find(board==' ');
+        if isempty(free_cells), break; end
+
+        % --- Robot intelligente ---
+        cell_num = findBestMove(board, robot_symbol); % prova a vincere
+        if cell_num == -1
+            cell_num = findBestMove(board, user_symbol); % blocca utente
+            if cell_num == 0
+                % centro libero
+                if board(2,2) == ' ', cell_num=5; 
+                else cell_num=free_cells(randi(length(free_cells))); end
+            end
+        end
+        writeline(s, "MOVE"); % 🔊 suono cambio turno
+        fprintf('🤖 Il robot sceglie la cella %d\n',cell_num);
+        msg = " E' il mio  turno :)";
+        cmd = sprintf("MSG,%s,0,20,2\n", msg);  %s per la stringa
+        writeline(s, cmd);
+        board(cellRow(cell_num),cellCol(cell_num)) = robot_symbol;
+        drawSymbol(robot, ik2R, v, s, centers(cell_num,:), robot_symbol);
+        moves = moves + 1;
+        winner = checkWinner(board);
+        turn = 'user';
     end
-end
-end
-% Esegui mossa
-fprintf('Robot sceglie cella %d\n', cell_num);
-board(cellRow(cell_num), cellCol(cell_num)) = robot_symbol;
-drawSymbol(robot, ik2R, v, s, centers(cell_num,:), robot_symbol);</div>
+end</div>
         <div class="highlight">
             <strong>Efficacia dell'algoritmo:</strong>
             <ul>
@@ -1430,76 +1432,8 @@ fprintf('Errore max: %e mm\n', max(errors)*1000);</div>
             </table>
             <p>L'implementazione cinematica è quindi <strong>numericamente accurata</strong>.</p>
         </div>
-        
-        <h3>8.2 Accuratezza Posizionamento</h3>
-        
-        <h4>8.2.1 Test Ripetibilità</h4>
-        
-        <p>La ripetibilità viene valutata comandando il robot di tornare alla stessa posizione più volte:</p>
-        
-        <div class="code-block">% Test 10 ripetizioni su punto (2.0, 2.0)
-n_rep = 10;
-target = [2.0, 2.0];
-positions = zeros(n_rep, 2);
-for i = 1:n_rep
-% Vai a posizione casuale
-random_pos = [rand()*4+0.5, rand()*4+0.5];
-% ... muovi robot ...
-% Torna al target
-% ... muovi robot a target ...
-
-% Registra posizione finale
-positions(i, :) = getCurrentPosition(robot);
-end
-% Calcola deviazione standard
-std_x = std(positions(:, 1));
-std_y = std(positions(:, 2));
-fprintf('Ripetibilità X: ±%.4f unità\n', std_x);
-fprintf('Ripetibilità Y: ±%.4f unità\n', std_y);</div>
-        <h4>8.2.2 Accuratezza Disegno Griglia</h4>
-        
-        <p>La griglia del tris deve rispettare dimensioni precise. Verifica:</p>
-        
-        <table>
-            <tr>
-                <th>Elemento</th>
-                <th>Dimensione Teorica</th>
-                <th>Tolleranza</th>
-            </tr>
-            <tr>
-                <td>Larghezza cella</td>
-                <td>0.9 unità</td>
-                <td>±0.02 unità</td>
-            </tr>
-            <tr>
-                <td>Altezza cella</td>
-                <td>0.9 unità</td>
-                <td>±0.02 unità</td>
-            </tr>
-            <tr>
-                <td>Perpendicolarità linee</td>
-                <td>90°</td>
-                <td>±2°</td>
-            </tr>
-            <tr>
-                <td>Diametro simbolo O</td>
-                <td>0.70 unità</td>
-                <td>±0.03 unità</td>
-            </tr>
-        </table>
-        
-        <div class="note">
-            <strong>Osservazione pratica:</strong> Nel robot fisico, l'accuratezza è limitata principalmente da:
-            <ul>
-                <li>Giochi meccanici nei servomotori (±1-2°)</li>
-                <li>Flessibilità dei link sotto carico</li>
-                <li>Attrito e slittamento della penna</li>
-            </ul>
-            La simulazione MATLAB è praticamente esatta (errori &lt; 10⁻¹⁰).
-        </div>
     </div>
 </div>
-
 <!-- CAPITOLO 9: CONCLUSIONI -->
 <div class="page-break">
     <div class="chapter">
@@ -1537,7 +1471,7 @@ fprintf('Ripetibilità Y: ±%.4f unità\n', std_y);</div>
             <li>Registrazione video dell'esecuzione completa</li>
         </ul>
         <div class="note">
-            <strong>Considerazioni finali:</strong> Il progetto dimostra come concetti teorici di cinematica, pianificazione del moto e controllo possano essere integrati in un sistema funzionante. L'approccio modulare adottato (separazione cinematica/comunicazione/logica gioco) facilita manutenzione ed estensioni future.
+            <strong>Considerazioni finali:</strong> Il progetto dimostra come concetti teorici di cinematica, pianificazione del moto e controllo possano essere integrati in un sistema funzionante. L'approccio modulare adottato (separazione cinematica/comunicazione/logica gioco) facilita manutenzione.
         </div>
     </div>
 </div>
